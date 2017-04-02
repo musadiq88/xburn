@@ -4,5 +4,5 @@
 ### Added
 - UI added using Tkinter (still in the works)
 
-###Changed
+### Changed
 - Removed force saving processed image in cli.py
