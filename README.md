@@ -4,7 +4,7 @@ TkinterUI
 UI for xburn components (Incomplete)
 
 ### Prerequisites
-python, PIL, numpy, Tkinter(tkinter)
+python 2.7.x, PIL, numpy, Tkinter(tkinter)
 
 
 ---------------------------------------------------------
