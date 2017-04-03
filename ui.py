@@ -2,15 +2,16 @@ from __future__ import division
 from __future__ import print_function
 
 import math
+import os
 import subprocess
+import tkFileDialog
+import ttk
+from Tkinter import *
 from itertools import groupby
 
 import PIL.Image
 import PIL.ImageTk
 import numpy
-import tkFileDialog
-import ttk
-from Tkinter import *
 
 # instance for Tkinter
 root = Tk()
@@ -216,7 +217,8 @@ class XBurnView:
 
         # TODO replace with the proper calls
         # start cli process
-        cmd = './cli.py ' + (self.xburn.filename.get() + ' ') \
+        path = os.path.join(os.getcwd(), 'cli.py ')
+        cmd = path + (self.xburn.filename.get() + ' ') \
               + (str(self.xburn.width.get()) + ' ') \
               + ('-s ' + str(self.xburn.shades.get()) + ' ') \
               + ('-wv ' + str(self.xburn.white_value.get()) + ' ') \
