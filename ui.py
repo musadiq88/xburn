@@ -87,7 +87,7 @@ class XBurnView:
         desired_width.grid(column=0, row=0, sticky=W, pady=5, padx=5)
 
         # Label(frame1, text="Number of shades", underline=True).grid(column=0, row=1, sticky=W, pady=5, padx=5)
-        shades_num = Scale(iFrame, from_=0, to=2000, length=300, label="Number of shades, defaults to 16",
+        shades_num = Scale(iFrame, from_=0, to=257, length=300, label="Number of shades, defaults to 16",
                            orient=HORIZONTAL, variable=self.xburn.shades)
         shades_num.grid(column=0, row=1, sticky=W, pady=5, padx=5)
 
