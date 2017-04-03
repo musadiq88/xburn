@@ -82,12 +82,12 @@ class XBurnView:
         iFrame.grid(column=0, row=0, columnspan=3, rowspan=2, sticky=(N, S, E, W))
 
         # Label(frame1, text="Number of shades", underline=True).grid(column=0, row=1, sticky=W, pady=5, padx=5)
-        desired_width = Scale(iFrame, from_=0, to=100, length=300, label="Width to resize image in mm, defaults to 50",
+        desired_width = Scale(iFrame, from_=0, to=500, length=300, label="Width to resize image in mm, defaults to 50",
                               orient=HORIZONTAL, variable=self.xburn.width)
         desired_width.grid(column=0, row=0, sticky=W, pady=5, padx=5)
 
         # Label(frame1, text="Number of shades", underline=True).grid(column=0, row=1, sticky=W, pady=5, padx=5)
-        shades_num = Scale(iFrame, from_=0, to=20, length=256, label="Number of shades, defaults to 16",
+        shades_num = Scale(iFrame, from_=0, to=2000, length=300, label="Number of shades, defaults to 16",
                            orient=HORIZONTAL, variable=self.xburn.shades)
         shades_num.grid(column=0, row=1, sticky=W, pady=5, padx=5)
 
