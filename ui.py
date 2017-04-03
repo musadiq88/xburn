@@ -2,6 +2,8 @@ from __future__ import division
 from __future__ import print_function
 
 import math
+import subprocess
+from itertools import groupby
 
 import PIL.Image
 import PIL.ImageTk
@@ -21,6 +23,7 @@ class xBurnObject(object):
     white_value = IntVar()
     x_density = DoubleVar()
     y_density = DoubleVar()
+    palette_on = BooleanVar()
     skip_rate = IntVar()
     burn_rate = IntVar()
     steps = IntVar()
@@ -33,7 +36,8 @@ class xBurnObject(object):
     preview_on = BooleanVar()
     debugging_on = BooleanVar()
 
-    def __init__(self, filename, width, shades, white_values, x_density, y_density, skip_rate, burn_rate, steps,
+    def __init__(self, filename, width, shades, white_values, x_density, y_density, palette_on, skip_rate, burn_rate,
+                 steps,
                  max_power, min_power, laser_on, laser_off, laser_mod, out_file_prefix, preview_on, debugging_on):
         self.filename.set(filename)
         self.width.set(width)
@@ -41,6 +45,7 @@ class xBurnObject(object):
         self.white_value.set(white_values)
         self.x_density.set(x_density)
         self.y_density.set(y_density)
+        self.palette_on.set(palette_on)
         self.skip_rate.set(skip_rate)
         self.burn_rate.set(burn_rate)
         self.steps.set(steps)
@@ -57,8 +62,8 @@ class xBurnObject(object):
 class XBurnView:
     label1 = None
     img_path = ""
-    xburn = xBurnObject(img_path, 50, 16, 255, 2.0, 2.0, 3000, 800, 255, 12000, 0, "M5", "M3", "S", "workfile", True,
-                        True)
+    xburn = xBurnObject(img_path, 50, 16, 255, 2.0, 2.0, True, 3000, 800, 255, 12000, 0, "M5", "M3", "S", "workfile",
+                        True, True)
 
     def __init__(self, master):
         self.master = master
@@ -102,6 +107,9 @@ class XBurnView:
                           label="Pixels per mm in y direction, default 2.0", orient=HORIZONTAL,
                           variable=self.xburn.y_density)
         y_density.grid(column=1, row=2, sticky=E, pady=5, padx=5)
+
+        palette = Checkbutton(iFrame, text="Palette", variable=self.xburn.palette_on)
+        palette.grid(column=0, row=3, sticky=W, pady=5, padx=5)
 
         # Laser vars frame
         lFrame = Frame(frame1, bg="red", borderwidth=5, relief="sunken", width=512)
@@ -173,7 +181,7 @@ class XBurnView:
         button2 = Button(frame2, text="Gradient test", width=20, command=self.gradient_test)
         button2.grid(row=2, column=0, sticky=S, pady=5, padx=5)
 
-        button3 = Button(frame2, text="Convert image", width=20, command=self.convert_image)
+        button3 = Button(frame2, text="Convert image", width=20, command=self.convert_all)
         button3.grid(row=3, column=0, sticky=S, pady=5, padx=5)
 
         button4 = Button(frame2, text="Generate gcode", width=20, command=self.generate_gcode)
@@ -208,7 +216,7 @@ class XBurnView:
 
         # TODO replace with the proper calls
         # start cli process
-        cmd = 'cli.py ' + (self.xburn.filename.get() + ' ') \
+        cmd = './cli.py ' + (self.xburn.filename.get() + ' ') \
               + (str(self.xburn.width.get()) + ' ') \
               + ('-s ' + str(self.xburn.shades.get()) + ' ') \
               + ('-wv ' + str(self.xburn.white_value.get()) + ' ') \
@@ -226,6 +234,8 @@ class XBurnView:
               + ('-d ' if self.xburn.debugging_on.get() else '')
 
         print(cmd)
+
+        subprocess.Popen(cmd, shell=True)
 
     def get_resize_update_img(self, path):
         global img_path
@@ -266,16 +276,33 @@ class XBurnView:
         img = PIL.Image.open(img_path)
         [img_width, img_height] = img.size
 
+        img = img.convert("L")
+
         height_ratio = self.xburn.width.get() / (img_width / img_height)
         resize_co = (int(math.floor(self.xburn.x_density.get() * self.xburn.width.get())),
                      int(math.floor(self.xburn.y_density.get() * height_ratio)))
 
+        if self.xburn.palette_on.get():
+            if self.xburn.shades.get() < 3:
+                palette = [0, 0, 0, 255, 255, 255, ] + [255, ] * 254 * 3
+            else:
+                palette = [0, 0, 0, ]
+                steps = int(math.floor(256 / (self.xburn.shades.get() - 1)))
+                for c in range(self.xburn.shades.get() - 2):
+                    m = c + 1
+                    palette = palette + [steps * m, steps * m, steps * m]
+                palette = palette + [255, ] * (256 - self.xburn.shades.get()) * 3
+
+            pimage = PIL.Image.new("P", (1, 1), 0)
+            pimage.putpalette(palette)
+
+            img = img.quantize(colors=self.xburn.shades.get(), palette=pimage)
+
         img = img.resize(resize_co, PIL.Image.LANCZOS) \
-            .convert("L", colors=self.xburn.shades.get()) \
             .transpose(PIL.Image.ROTATE_180) \
             .transpose(PIL.Image.FLIP_LEFT_RIGHT)
 
-        self.resize_update_img(img)
+        # self.resize_update_img(img)
 
         return img
 
@@ -291,6 +318,53 @@ class XBurnView:
                 pixels[i, j] = (i, i, i)  # set the colour accordingly
 
         self.resize_update_img(test)
+
+    def convert_all(self):
+        img = self.convert_image()
+        arr = self.get_converted_img_array(img)
+
+        prv = PIL.Image.new('RGB', (len(arr[0]), len(arr)), "red")
+        pixels = prv.load()  # create the pixel map
+
+        # Y position
+        yp = 0
+
+        for y in arr:
+            # If we have an even number for a y axis line
+            if yp % 2 != 0:
+                # Direction is reversed, set xp to the end
+                xp = len(y) - 1
+                # Revese the values of y
+                y = list(reversed(y))
+                rev = True
+            else:
+                xp = 0
+                rev = False
+            # Group pixels by value into a new list
+            for i, j in groupby(y):
+                # items in the list
+                items = list(j)
+                # Number of items
+                size = len(items)
+                # grey Value in this chunk of the line
+                value = items[0]
+                # Make sure this group isn't above the whitevalue
+                if value < self.xburn.white_value.get():
+
+                    pvx = len(items) - 1 if rev else 0
+                    for item in items:
+                        pix = xp - pvx if rev else xp + pvx
+                        pixels[pix, yp] = (item, item, item)
+                        pvx = pvx - 1 if rev else pvx + 1
+
+                # Increment position
+                xp = xp - size if rev else xp + size
+
+            yp = yp + 1
+
+        prv.transpose(PIL.Image.ROTATE_180).transpose(PIL.Image.FLIP_LEFT_RIGHT)
+
+        self.resize_update_img(prv)
 
 
 xburn = XBurnView(root)
